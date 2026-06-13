@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="am">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TV Compatible PDF Reader</title>
+    <style>
+        :root {
+            --bg-color: #0b0c10;
+            --card-bg: rgba(31, 40, 51, 0.95);
+            --primary-glow: #66fcf1;
+            --text-color: #c5c6c7;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: #ffffff;
+            font-family: 'Segoe UI', Roboto, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* የሚያምር አከፋፈት (Splash Screen) */
+        #splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: radial-gradient(circle, #1f2833 0%, #0b0c10 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            transition: opacity 0.5s ease-out;
+        }
+
+        .splash-title {
+            font-size: 32px;
+            font-weight: bold;
+            color: var(--primary-glow);
+            letter-spacing: 2px;
+        }
+
+        /* የፋይል ማስመረጫ ገጽ */
+        #file-selector-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            width: 100%;
+            z-index: 10;
+        }
+
+        .upload-card {
+            background-color: var(--card-bg);
+            padding: 40px;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 2px dashed var(--primary-glow);
+            max-width: 500px;
+            width: 90%;
+        }
+
+        #file-input {
+            display: none;
+        }
+
+        /* ዋናው የንባብ ገጽ (PDF Viewer) */
+        #main-viewer {
+            display: none;
+            flex-direction: column;
+            height: 100vh;
+            width: 100%;
+            position: relative;
+        }
+
+        .app-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 60px;
+            background-color: var(--card-bg);
+            padding: 0 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            z-index: 100;
+        }
+
+        .brand {
+            font-size: 20px;
+            font-weight: bold;
+            color: var(--primary-glow);
+        }
+
+        /* ቋሚ PDF መያዣ ክፍል (Native Object approach) */
+        #pdf-container {
+            position: fixed;
+            top: 60px;
+            bottom: 70px;
+            left: 0;
+            width: 100%;
+            background: #121212;
+            overflow: hidden;
+        }
+
+        /* ይህ መንገድ በአንድሮይድ ቲቪዎች ላይ በምቾት ይከፈታል */
+        #offline-pdf-object {
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+
+        /* የታችኛው የቁጥጥር ባር */
+        .control-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 70px;
+            background-color: var(--card-bg);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 0 20px;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            z-index: 100;
+        }
+
+        .btn {
+            background-color: #0b0c10;
+            color: #ffffff;
+            border: 2px solid #2c3540;
+            padding: 10px 25px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 30px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .btn:focus, .btn:hover {
+            background-color: var(--primary-glow);
+            color: #0b0c10;
+            outline: none;
+            transform: scale(1.08);
+            box-shadow: 0 0 15px var(--primary-glow);
+        }
+
+        .info-badge {
+            font-size: 14px;
+            background: rgba(11, 12, 16, 0.8);
+            padding: 6px 15px;
+            border-radius: 20px;
+            border: 1px solid #2c3540;
+            color: var(--text-color);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="splash-screen">
+        <div class="splash-title">NEXUS TV READER</div>
+    </div>
+
+    <div id="file-selector-container">
+        <div class="upload-card">
+            <h2 style="color: var(--primary-glow); margin-bottom: 20px;">PDF ፋይል ይክፈቱ</h2>
+            <input type="file" id="file-input" accept="application/pdf">
+            <button class="btn" id="browse-btn" style="margin: 0 auto;" autofocus>ፋይል ፈልግ (OK)</button>
+        </div>
+    </div>
+
+    <div id="main-viewer">
+        <div class="app-header">
+            <div class="brand">Smart TV Reader</div>
+            <button class="btn" id="back-to-menu-btn" style="padding: 4px 15px; font-size: 12px;">ዝጋ</button>
+        </div>
+
+        <div id="pdf-container">
+            <object id="offline-pdf-object" data="" type="application/pdf"></object>
+        </div>
+
+        <div class="control-bar">
+            <span class="info-badge">ሪሞት መቆጣጠሪያ፦ [CH+] ወደላይ | [CH-] ወደታች | [ቀስት ቁልፎች] ማሸብለያ</span>
+        </div>
+    </div>
+
+    <script>
+        // ስፕላሽ ማጥፊያ
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                const splash = document.getElementById('splash-screen');
+                splash.style.opacity = '0';
+                setTimeout(() => splash.style.display = 'none', 500);
+            }, 1500);
+        });
+
+        const fileInput = document.getElementById('file-input');
+        const browseBtn = document.getElementById('browse-btn');
+
+        browseBtn.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file && file.type === "application/pdf") {
+                // ፋይሉን ያለ ኢንተርኔት ወደ ጊዜያዊ ሎካል ሊንክ (Blob URL) መቀየር
+                const objectUrl = URL.createObjectURL(file);
+                
+                // የኦፍላይን ማሳያው ላይ ሊንኩን መጫን
+                document.getElementById('offline-pdf-object').data = objectUrl;
+
+                // ስክሪኑን መቀየር
+                document.getElementById('file-selector-container').style.display = 'none';
+                document.getElementById('main-viewer').style.display = 'flex';
+                document.getElementById('back-to-menu-btn').focus();
+            }
+        });
+
+        // የቲቪ ሪሞት ቁልፎች (D-Pad እና Channel Up/Down)
+        document.addEventListener('keydown', (e) => {
+            if (document.getElementById('main-viewer').style.display === 'flex') {
+                const pdfViewer = document.getElementById('offline-pdf-object');
+                
+                // 1. CH+ ወይም የላይኛው ቀስት (ጽሑፉን ወደ ላይ ማንሸራተት)
+                if (e.key === 'PageUp' || e.key === 'ArrowUp' || e.keyCode === 33 || e.keyCode === 38) {
+                    try { pdfViewer.contentWindow.scrollBy(0, -100); } catch(err) {}
+                    e.preventDefault();
+                } 
+                // 2. CH- ወይም የታችኛው ቀስት (ጽሑፉን ወደ ታች ማንሸራተት)
+                else if (e.key === 'PageDown' || e.key === 'ArrowDown' || e.keyCode === 34 || e.keyCode === 40) {
+                    try { pdfViewer.contentWindow.scrollBy(0, 100); } catch(err) {}
+                    e.preventDefault();
+                }
+                // 3. የግራ እና ቀኝ ቀስቶች (ወደ ጎን ለማንሸራተት)
+                else if (e.key === 'ArrowLeft') {
+                    try { pdfViewer.contentWindow.scrollBy(-100, 0); } catch(err) {}
+                } else if (e.key === 'ArrowRight') {
+                    try { pdfViewer.contentWindow.scrollBy(100, 0); } catch(err) {}
+                }
+            }
+        });
+
+        document.getElementById('back-to-menu-btn').addEventListener('click', () => {
+            document.getElementById('main-viewer').style.display = 'none';
+            document.getElementById('file-selector-container').style.display = 'flex';
+            browseBtn.focus();
+        });
+    </script>
+</body>
+</html>
